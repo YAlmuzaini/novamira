@@ -277,10 +277,6 @@ if ($is_enabled) {
         require_once $dir . 'enable-file.php';
         require_once $dir . 'list-directory.php';
 
-        // MCP meta-abilities (skipped if already registered by standalone MCP Adapter plugin).
-        require_once $dir . 'mcp-discover-abilities.php';
-        require_once $dir . 'mcp-get-ability-info.php';
-        require_once $dir . 'mcp-execute-ability.php';
     });
 }
 

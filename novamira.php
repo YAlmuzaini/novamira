@@ -157,13 +157,13 @@ if (!$is_enabled && novamira_is_domain_mismatch()) {
 }
 
 if ($is_enabled) {
-    // Customize the MCP server instructions sent to AI agents during initialization.
+    // Brand the default MCP server. Usage instructions are returned from the
+    // discover-abilities tool instead of the initialize handshake.
     add_filter('mcp_adapter_default_server_config', static function (mixed $config): mixed {
         if (!is_array($config)) {
             return $config;
         }
         $config['server_name'] = 'Novamira';
-        $config['server_description'] = novamira_build_server_instructions();
         return $config;
     });
 
@@ -276,7 +276,7 @@ if ($is_enabled) {
         require_once $dir . 'disable-file.php';
         require_once $dir . 'enable-file.php';
         require_once $dir . 'list-directory.php';
-
+        require_once $dir . 'discover-abilities.php';
     });
 }
 

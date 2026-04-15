@@ -5,6 +5,60 @@
 
 declare(strict_types=1);
 
+/**
+ * Collects every public MCP tool ability registered on the site, grouped by source.
+ *
+ * The source label is resolved per-ability via the `novamira_ability_source_label`
+ * filter (default: "Novamira"), so add-ons can contribute rows under their own
+ * heading. Within a group, rows are sorted by category then name. Groups are
+ * returned with the default source first, other sources sorted alphabetically.
+ *
+ * @return array<string, list<array{name: string, category: string, description: string}>>
+ */
+function novamira_collect_public_abilities(): array
+{
+    $default_source = __('Novamira', domain: 'novamira');
+    $groups = [];
+    foreach (wp_get_abilities() as $ability) {
+        $name = $ability->get_name();
+        if (!str_starts_with($name, 'novamira/')) {
+            continue;
+        }
+        $meta = $ability->get_meta();
+        if (!($meta['mcp']['public'] ?? false)) {
+            continue;
+        }
+        if (($meta['mcp']['type'] ?? 'tool') !== 'tool') {
+            continue;
+        }
+        $category_slug = $ability->get_category();
+        $category = $category_slug !== '' ? wp_get_ability_category($category_slug) : null;
+        /** @var string $source */
+        $source = apply_filters('novamira_ability_source_label', $default_source, $ability);
+        $groups[$source] ??= [];
+        $groups[$source][] = [
+            'name' => $name,
+            'category' => $category !== null ? $category->get_label() : $category_slug,
+            'description' => $ability->get_description(),
+        ];
+    }
+    foreach ($groups as $source => $rows) {
+        usort(
+            $rows,
+            static fn(array $a, array $b): int => [$a['category'], $a['name']] <=> [$b['category'], $b['name']],
+        );
+        $groups[$source] = $rows;
+    }
+
+    $sorted = [];
+    if (array_key_exists($default_source, $groups)) {
+        $sorted[$default_source] = $groups[$default_source];
+        unset($groups[$default_source]);
+    }
+    ksort($groups);
+    return $sorted + $groups;
+}
+
 function novamira_handle_sandbox_actions()
 {
     if (!current_user_can('manage_options')) {
@@ -204,49 +258,7 @@ function novamira_render_settings_page()
     }
 
     $enabled = novamira_is_enabled();
-
-    $abilities = [
-        [
-            'execute-php',
-            __('Code Execution', domain: 'novamira'),
-            __('Run PHP code with full access to the WordPress environment.', domain: 'novamira'),
-        ],
-        [
-            'read-file',
-            __('Filesystem', domain: 'novamira'),
-            __('Read file contents. Binary files are returned as base64.', domain: 'novamira'),
-        ],
-        [
-            'write-file',
-            __('Filesystem', domain: 'novamira'),
-            __('Create or overwrite files. PHP files are confined to the sandbox directory.', domain: 'novamira'),
-        ],
-        [
-            'edit-file',
-            __('Filesystem', domain: 'novamira'),
-            __('Apply a targeted text replacement to an existing file.', domain: 'novamira'),
-        ],
-        [
-            'delete-file',
-            __('Filesystem', domain: 'novamira'),
-            __('Delete files or directories. Critical WordPress directories are protected.', domain: 'novamira'),
-        ],
-        [
-            'disable-file',
-            __('Filesystem', domain: 'novamira'),
-            __('Disable a sandbox file by renaming it with a .disabled suffix.', domain: 'novamira'),
-        ],
-        [
-            'enable-file',
-            __('Filesystem', domain: 'novamira'),
-            __('Re-enable a previously disabled sandbox file.', domain: 'novamira'),
-        ],
-        [
-            'list-directory',
-            __('Filesystem', domain: 'novamira'),
-            __('List directory contents with glob filtering and recursive traversal.', domain: 'novamira'),
-        ],
-    ];
+    $ability_groups = novamira_collect_public_abilities();
     ?>
     <?php novamira_render_admin_header(); ?>
     <div class="wrap">
@@ -309,24 +321,27 @@ function novamira_render_settings_page()
             'These MCP tools are exposed to AI agents when AI Abilities are enabled.',
             domain: 'novamira',
         ); ?></p>
-        <table class="wp-list-table widefat fixed striped">
-            <thead>
-                <tr>
-                    <th style="width:200px;"><?php esc_html_e('Ability', domain: 'novamira'); ?></th>
-                    <th style="width:130px;"><?php esc_html_e('Category', domain: 'novamira'); ?></th>
-                    <th><?php esc_html_e('Description', domain: 'novamira'); ?></th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($abilities as [$slug, $category, $description]): ?>
+        <?php foreach ($ability_groups as $source => $abilities): ?>
+            <h3 style="margin-top:1.5em;"><?php echo esc_html($source); ?></h3>
+            <table class="wp-list-table widefat fixed striped">
+                <thead>
                     <tr>
-                        <td><code><?php echo esc_html($slug); ?></code></td>
-                        <td><?php echo esc_html($category); ?></td>
-                        <td><?php echo esc_html($description); ?></td>
+                        <th style="width:260px;"><?php esc_html_e('Ability', domain: 'novamira'); ?></th>
+                        <th style="width:140px;"><?php esc_html_e('Category', domain: 'novamira'); ?></th>
+                        <th><?php esc_html_e('Description', domain: 'novamira'); ?></th>
                     </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    <?php foreach ($abilities as $ability): ?>
+                        <tr>
+                            <td><code><?php echo esc_html($ability['name']); ?></code></td>
+                            <td><?php echo esc_html($ability['category']); ?></td>
+                            <td><?php echo esc_html($ability['description']); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endforeach; ?>
     </div>
     <?php
 }

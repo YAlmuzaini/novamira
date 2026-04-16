@@ -172,6 +172,39 @@ if ($is_enabled) {
         \WP\MCP\Core\McpAdapter::instance();
     }
 
+    // The `mcp-adapter/execute-ability` dispatcher wraps every ability return in
+    // `{ success: true, data: <inner> }`. When the inner value is itself
+    // `{ success: false, error: "..." }` the outer `success: true` masks a real
+    // logical failure, and agents that check the top-level flag — a very
+    // reasonable default — silently march past the error. Unwrap that shape
+    // here so the adapter's backward-compat path (ToolsHandler) turns it into a
+    // proper `isError: true` CallToolResult.
+    add_filter(
+        'mcp_adapter_tool_call_result',
+        static function (mixed $result, array $args, string $tool_name): mixed {
+            // Tool names are MCP-sanitized from ability slugs — `/` becomes `-`.
+            if ($tool_name !== 'mcp-adapter-execute-ability') {
+                return $result;
+            }
+            if (!is_array($result) || ($result['success'] ?? null) !== true) {
+                return $result;
+            }
+            /** @var array<array-key, mixed>|null $data */
+            $data = $result['data'] ?? null;
+            if (!is_array($data) || ($data['success'] ?? null) !== false) {
+                return $result;
+            }
+            /** @var string|null $error */
+            $error = $data['error'] ?? null;
+            if (!is_string($error) || trim($error) === '') {
+                return $result;
+            }
+            return ['success' => false, 'error' => $error];
+        },
+        priority: 10,
+        accepted_args: 3,
+    );
+
     // Fix empty "properties" in JSON Schema: PHP json_encode outputs [] instead of {}.
     // MCP clients reject tools with invalid schemas, so we fix this in the REST response.
     add_filter('rest_pre_echo_response', static function (mixed $result): mixed {

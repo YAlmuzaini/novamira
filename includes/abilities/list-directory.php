@@ -236,14 +236,20 @@ function novamira_build_entry($info, $pattern, $include_hidden)
         return null;
     }
 
+    $pathname = $info->getPathname();
     $is_dir = $info->isDir();
+    // Broken symlinks and unreadable entries fail stat-dependent calls (getSize,
+    // getPerms, getMTime) — in PHP 8+ those throw RuntimeException. Check once
+    // via file_exists(), which follows symlinks and returns false for dangling
+    // ones, then gate the stat calls so we still list the entry.
+    $stat_ok = $is_dir || file_exists($pathname);
 
     return [
         'name' => $name,
-        'path' => $info->getPathname(),
+        'path' => $pathname,
         'type' => $is_dir ? 'directory' : 'file',
-        'size' => $is_dir ? 0 : $info->getSize(),
-        'permissions' => substr(sprintf('%o', $info->getPerms()), -4),
-        'modified' => gmdate('c', (int) $info->getMTime()),
+        'size' => $stat_ok && !$is_dir ? $info->getSize() : 0,
+        'permissions' => $stat_ok ? substr(sprintf('%o', $info->getPerms()), -4) : '0000',
+        'modified' => $stat_ok ? gmdate('c', (int) $info->getMTime()) : '',
     ];
 }

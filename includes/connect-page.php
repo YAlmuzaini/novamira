@@ -281,7 +281,29 @@ function novamira_render_passwords_section(?string $new_password): void
     </form>
 
     <?php if ($mcp_passwords !== []): ?>
-        <table class="wp-list-table widefat fixed striped">
+        <?php
+
+        $count = count($mcp_passwords);
+        /* translators: %d: number of existing application passwords */
+        $show_label = sprintf(
+            _n(single: 'Show existing (%d)', plural: 'Show existing (%d)', number: $count, domain: 'novamira'),
+            $count,
+        );
+        $hide_label = __('Hide existing', domain: 'novamira');
+        ?>
+        <p style="margin:8px 0 12px;">
+            <button
+                type="button"
+                class="button-link"
+                id="novamira-passwords-toggle"
+                aria-expanded="false"
+                aria-controls="novamira-passwords-list"
+                data-show-label="<?php echo esc_attr($show_label); ?>"
+                data-hide-label="<?php echo esc_attr($hide_label); ?>"
+                onclick="novamiraTogglePasswords(this)"
+            ><?php echo esc_html($show_label); ?></button>
+        </p>
+        <table id="novamira-passwords-list" class="wp-list-table widefat fixed striped" style="display:none;" hidden>
             <thead>
                 <tr>
                     <th><?php esc_html_e('Name', domain: 'novamira'); ?></th>
@@ -296,6 +318,23 @@ function novamira_render_passwords_section(?string $new_password): void
                 <?php endforeach; ?>
             </tbody>
         </table>
+        <script>
+        window.novamiraTogglePasswords = function (btn) {
+            var list = document.getElementById('novamira-passwords-list');
+            var expanded = btn.getAttribute('aria-expanded') === 'true';
+            if (expanded) {
+                list.style.display = 'none';
+                list.hidden = true;
+                btn.setAttribute('aria-expanded', 'false');
+                btn.textContent = btn.getAttribute('data-show-label');
+            } else {
+                list.style.display = '';
+                list.hidden = false;
+                btn.setAttribute('aria-expanded', 'true');
+                btn.textContent = btn.getAttribute('data-hide-label');
+            }
+        };
+        </script>
     <?php endif; ?>
     <?php if ($mcp_passwords === []): ?>
         <p style="color:#888;"><?php esc_html_e('No Novamira application passwords yet.', domain: 'novamira'); ?></p>

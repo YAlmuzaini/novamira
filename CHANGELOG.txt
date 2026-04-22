@@ -1,6 +1,8 @@
+v1.1.1 - 2026/04/22
 * Improvement: The Configuration page now detects when Application Passwords have been disabled by a security plugin (e.g. Solid Security, Wordfence) and shows a clear explanation instead of the generic HTTPS/local-environment message.
-* Improvement: Moved the AI Abilities on/off switch to the top of the Configuration page. Application passwords and MCP client setup are hidden until abilities are enabled. The Settings sub-page has been renamed to AI Abilities.
+* Improvement: Moved the AI Abilities on/off switch to the top of the Configuration page making clear they are needed for the MCP to work.
 * Improvement: When an AI agent sends invalid input, the error message now includes the specific per-property details the agent needs to correct it — so the agent can fix its own mistake in one try instead of guessing or asking the user.
+* Minor Fixes
 
 v1.1.0 - 2026/04/20
 * Fix: Recursive directory listings no longer fail when a folder contains a broken shortcut (symlink) — the listing now skips over it gracefully and includes the rest of the results.

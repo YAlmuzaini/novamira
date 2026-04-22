@@ -111,11 +111,9 @@ function novamira_handle_create_password()
 
     check_admin_referer('novamira_create_password');
 
-    if (!wp_is_application_passwords_available()) {
-        return new WP_Error('not_available', __(
-            'Application Passwords require HTTPS or WP_ENVIRONMENT_TYPE set to "local".',
-            domain: 'novamira',
-        ));
+    $status = novamira_app_passwords_status();
+    if (!$status['available']) {
+        return new WP_Error('not_available', $status['message']);
     }
 
     $user_id = get_current_user_id();
@@ -224,6 +222,7 @@ function novamira_render_passwords_section(?string $new_password): void
 {
     $mcp_passwords = novamira_get_mcp_passwords();
     $dt_format = novamira_get_datetime_format('Y-m-d H:i');
+    $pw_status = novamira_app_passwords_status();
     ?>
     <h2><?php
 
@@ -235,17 +234,12 @@ function novamira_render_passwords_section(?string $new_password): void
             'Application passwords let AI clients authenticate with WordPress over HTTP without using your main password.',
             domain: 'novamira',
         ); ?>
-        <?php if (!wp_is_application_passwords_available()): ?>
-            <strong style="color:#d63638;"><?php
-
-            printf(
-                /* translators: %s: WP_ENVIRONMENT_TYPE=local in code format */
-                esc_html__('Application Passwords require HTTPS or %s.', domain: 'novamira'),
-                '<code>WP_ENVIRONMENT_TYPE=local</code>',
-            );
-            ?></strong>
-        <?php endif; ?>
     </p>
+    <?php if (!$pw_status['available']): ?>
+        <div class="notice notice-error inline" style="margin:12px 0;">
+            <p><strong><?php echo esc_html($pw_status['message']); ?></strong></p>
+        </div>
+    <?php endif; ?>
 
     <?php if ($new_password !== null): ?>
         <div class="novamira-password-box">
@@ -275,7 +269,7 @@ function novamira_render_passwords_section(?string $new_password): void
             type="submit"
             name="novamira_create_password"
             class="button button-primary"
-            <?php echo !wp_is_application_passwords_available() ? 'disabled' : ''; ?>>
+            <?php echo !$pw_status['available'] ? 'disabled' : ''; ?>>
             <?php esc_html_e('Create New Application Password', domain: 'novamira'); ?>
         </button>
     </form>

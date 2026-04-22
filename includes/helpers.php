@@ -165,6 +165,41 @@ function novamira_is_domain_mismatch()
 }
 
 /**
+ * Report whether WordPress Application Passwords are available, and why not if not.
+ *
+ * Distinguishes between the HTTPS/local-env requirement (`wp_is_application_passwords_supported()`)
+ * and a filter-based override (typical of security plugins hooking `wp_is_application_passwords_available`).
+ *
+ * @return array{available: bool, reason: 'available'|'unsupported'|'filtered', message: string}
+ */
+function novamira_app_passwords_status(): array
+{
+    if (wp_is_application_passwords_available()) {
+        return ['available' => true, 'reason' => 'available', 'message' => ''];
+    }
+
+    if (!wp_is_application_passwords_supported()) {
+        return [
+            'available' => false,
+            'reason' => 'unsupported',
+            'message' => __(
+                'Application Passwords require HTTPS or WP_ENVIRONMENT_TYPE set to "local".',
+                domain: 'novamira',
+            ),
+        ];
+    }
+
+    return [
+        'available' => false,
+        'reason' => 'filtered',
+        'message' => __(
+            'Application Passwords have been disabled on this site, likely by a security plugin. Check your security plugin settings (e.g. Solid Security, Wordfence, All In One WP Security) and re-enable Application Passwords to continue.',
+            domain: 'novamira',
+        ),
+    ];
+}
+
+/**
  * Build a combined date/time format string from WordPress settings.
  *
  * Falls back to 'Y-m-d H:i:s' if either format is empty.

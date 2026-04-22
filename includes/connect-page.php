@@ -14,6 +14,83 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * Handle the enable/disable AI Abilities toggle submission.
+ * Returns true on save, null when no submission.
+ */
+function novamira_handle_toggle_enabled(): ?bool
+{
+    if (($_POST['novamira_submit'] ?? null) === null) {
+        return null;
+    }
+    if (!current_user_can('manage_options')) {
+        return null;
+    }
+
+    check_admin_referer('novamira_settings');
+
+    $enabled = ($_POST['novamira_ai_abilities_enabled'] ?? null) !== null;
+    update_option('novamira_ai_abilities_enabled', $enabled);
+    if ($enabled) {
+        update_option('novamira_ai_abilities_domain', (string) wp_parse_url(home_url(), PHP_URL_HOST));
+        return true;
+    }
+    delete_option('novamira_ai_abilities_domain');
+    return true;
+}
+
+function novamira_render_enable_toggle(bool $enabled): void
+{ ?>
+    <form method="post" action="" id="novamira-settings-form" style="margin-bottom: 24px;">
+        <?php wp_nonce_field('novamira_settings'); ?>
+        <table class="form-table">
+            <tr>
+                <th scope="row"><?php esc_html_e('AI Abilities', domain: 'novamira'); ?></th>
+                <td>
+                    <label>
+                        <input type="checkbox" name="novamira_ai_abilities_enabled" value="1" id="novamira-enable-checkbox" <?php checked(
+                            checked: $enabled,
+                            current: true,
+                        ); ?> />
+                        <?php esc_html_e('Enable AI Abilities', domain: 'novamira'); ?>
+                    </label>
+                    <p class="description"><strong style="color:#d63638;"><?php esc_html_e(
+                        'Security note:',
+                        domain: 'novamira',
+                    ); ?></strong> <?php esc_html_e(
+                        'When enabled, AI agents can execute PHP code and perform filesystem operations on this site. For development and staging environments only — always keep backups.',
+                        domain: 'novamira',
+                    ); ?></p>
+                    <p class="description"><?php esc_html_e(
+                        'For best results, use with capable, instruction-following AI models. Configure your MCP client to require approval before executing tools, and review each tool call before allowing it to run.',
+                        domain: 'novamira',
+                    ); ?></p>
+                    <p class="description"><?php esc_html_e(
+                        'You choose the AI model, you provide the API key, you review the output. We provide the plugin.',
+                        domain: 'novamira',
+                    ); ?></p>
+                </td>
+            </tr>
+        </table>
+        <?php submit_button(text: __('Save Settings', domain: 'novamira'), type: 'primary', name: 'novamira_submit'); ?>
+    </form>
+    <script>
+    document.getElementById('novamira-settings-form').addEventListener('submit', function (e) {
+        var cb = document.getElementById('novamira-enable-checkbox');
+        if (cb.checked && !cb.defaultChecked) {
+            if (!confirm('<?php echo
+                esc_js(__(
+                    'AI agents will be able to execute PHP code and access the filesystem. For development and staging environments only. Continue?',
+                    domain: 'novamira',
+                ))
+            ; ?>')) {
+                e.preventDefault();
+            }
+        }
+    });
+    </script>
+    <?php }
+
+/**
  * Handle the create-password form submission.
  * Returns the plaintext password on success, a WP_Error on failure, or null when no submission.
  *
@@ -635,6 +712,9 @@ function novamira_render_connect_page(): void
         return;
     }
 
+    $toggle_saved = novamira_handle_toggle_enabled();
+    $enabled = novamira_is_enabled();
+
     $password_result = novamira_handle_create_password();
     $create_error = is_wp_error($password_result) ? $password_result : null;
     $new_password = is_string($password_result) ? $password_result : null;
@@ -714,57 +794,71 @@ function novamira_render_connect_page(): void
     <div class="wrap">
         <h1><?php esc_html_e('Configuration', domain: 'novamira'); ?></h1>
 
-        <?php if (!novamira_is_enabled()): ?>
-            <div class="notice notice-warning" style="border-left-color:#dba617;">
-                <p style="font-size:14px;">
-                    <strong><?php esc_html_e('AI Abilities are not enabled.', domain: 'novamira'); ?></strong>
-                    <?php esc_html_e(
-                        'The MCP server is not active. MCP clients will not be able to connect.',
-                        domain: 'novamira',
-                    ); ?>
-                    <a href="<?php echo esc_url(admin_url('admin.php?page=novamira')); ?>"><?php esc_html_e(
-                        'Enable AI Abilities in Settings',
-                        domain: 'novamira',
-                    ); ?></a>.
-                </p>
-            </div>
+        <?php if ($toggle_saved === true): ?>
+            <div class="notice notice-success is-dismissible"><p><?php
+
+            esc_html_e('Settings saved.', domain: 'novamira');
+            ?></p></div>
         <?php endif; ?>
 
-        <?php if ($create_error !== null): ?>
-            <div class="notice notice-error"><p><?php echo esc_html($create_error->get_error_message()); ?></p></div>
-        <?php endif; ?>
+        <?php novamira_render_enable_toggle($enabled); ?>
 
-        <?php if ($new_password !== null): ?>
-            <div class="notice notice-error" style="border-left-color:#d63638;">
-                <p style="font-size:14px;">
-                    <strong><?php esc_html_e('Application password created — copy it now.', domain: 'novamira'); ?></strong>
-                    <?php esc_html_e('It will not be shown again after you leave this page.', domain: 'novamira'); ?>
-                </p>
-            </div>
-        <?php endif; ?>
+        <?php if (!$enabled): ?>
+            <p style="color:#666; font-size:14px;">
+                <?php esc_html_e(
+                    'Enable AI Abilities above to create application passwords and connect an MCP client.',
+                    domain: 'novamira',
+                ); ?>
+            </p>
+        <?php else: ?>
+            <?php if ($create_error !== null): ?>
+                <div class="notice notice-error"><p><?php
 
-        <?php if ($result_message !== null): ?>
-            <div class="notice notice-success is-dismissible"><p><?php echo esc_html($result_message); ?></p></div>
-        <?php endif; ?>
+                echo esc_html($create_error->get_error_message());
+                ?></p></div>
+            <?php endif; ?>
 
-        <div class="novamira-connect-section">
-            <?php novamira_render_passwords_section($new_password); ?>
-        </div>
-
-        <?php if ($new_password !== null || novamira_get_mcp_passwords() !== []): ?>
-        <div class="novamira-connect-section">
-            <?php if ($new_password === null): ?>
-                <div class="notice notice-warning inline" style="margin:12px 0;">
-                    <p>
+            <?php if ($new_password !== null): ?>
+                <div class="notice notice-error" style="border-left-color:#d63638;">
+                    <p style="font-size:14px;">
+                        <strong><?php esc_html_e(
+                            'Application password created — copy it now.',
+                            domain: 'novamira',
+                        ); ?></strong>
                         <?php esc_html_e(
-                            'Replace YOUR-APP-PASSWORD in the config below with an application password from step 1.',
+                            'It will not be shown again after you leave this page.',
                             domain: 'novamira',
                         ); ?>
                     </p>
                 </div>
             <?php endif; ?>
-            <?php novamira_render_config_section($rest_url, $username, $display_password); ?>
-        </div>
+
+            <?php if ($result_message !== null): ?>
+                <div class="notice notice-success is-dismissible"><p><?php
+
+                echo esc_html($result_message);
+                ?></p></div>
+            <?php endif; ?>
+
+            <div class="novamira-connect-section">
+                <?php novamira_render_passwords_section($new_password); ?>
+            </div>
+
+            <?php if ($new_password !== null || novamira_get_mcp_passwords() !== []): ?>
+            <div class="novamira-connect-section">
+                <?php if ($new_password === null): ?>
+                    <div class="notice notice-warning inline" style="margin:12px 0;">
+                        <p>
+                            <?php esc_html_e(
+                                'Replace YOUR-APP-PASSWORD in the config below with an application password from step 1.',
+                                domain: 'novamira',
+                            ); ?>
+                        </p>
+                    </div>
+                <?php endif; ?>
+                <?php novamira_render_config_section($rest_url, $username, $display_password); ?>
+            </div>
+            <?php endif; ?>
         <?php endif; ?>
 
     </div>

@@ -116,11 +116,11 @@ add_action('admin_menu', static function () {
         callback: 'novamira_render_connect_page',
     );
 
-    // Settings sub-page.
+    // AI Abilities sub-page.
     add_submenu_page(
         parent_slug: 'novamira-connect',
-        page_title: __('Settings', domain: 'novamira'),
-        menu_title: __('Settings', domain: 'novamira'),
+        page_title: __('AI Abilities', domain: 'novamira'),
+        menu_title: __('AI Abilities', domain: 'novamira'),
         capability: 'manage_options',
         menu_slug: 'novamira',
         callback: 'novamira_render_settings_page',
@@ -146,7 +146,7 @@ if (!$is_enabled && novamira_is_domain_mismatch()) {
         wp_admin_notice(
             sprintf(
                 esc_html__(
-                    'Novamira AI Abilities were disabled because the site domain changed (enabled on %s). Re-enable them from the settings page if this is intentional.',
+                    'Novamira AI Abilities were disabled because the site domain changed (enabled on %s). Re-enable them from the Configuration page if this is intentional.',
                     domain: 'novamira',
                 ),
                 '<code>' . esc_html($locked) . '</code>',
@@ -264,7 +264,7 @@ if ($is_enabled) {
             $wp_admin_bar->add_node([
                 'id' => 'novamira-mcp-status',
                 'title' => esc_html__('Novamira ON', domain: 'novamira'),
-                'href' => admin_url('admin.php?page=novamira'),
+                'href' => admin_url('admin.php?page=novamira-connect'),
                 'meta' => ['class' => 'novamira-mcp-on'],
             ]);
         },

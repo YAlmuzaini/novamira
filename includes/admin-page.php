@@ -217,7 +217,9 @@ function novamira_render_sandbox_table(): void
                                 ? esc_html__('Enable', domain: 'novamira')
                                 : esc_html__('Disable', domain: 'novamira')
                         ; ?></a>
-                        <a href="<?php echo esc_url($delete_url); ?>" class="button button-small" onclick="return confirm('<?php echo
+                        <a href="<?php echo
+                            esc_url($delete_url)
+                        ; ?>" class="button button-small" onclick="return confirm('<?php echo
                             esc_js(__('Are you sure you want to delete this file?', domain: 'novamira'))
                         ; ?>');" style="color: #d63638; border-color: #d63638;"><?php esc_html_e(
                             'Delete',
@@ -238,86 +240,22 @@ function novamira_render_settings_page()
         return;
     }
 
-    if (($_POST['novamira_submit'] ?? null) !== null) {
-        check_admin_referer('novamira_settings');
-        $enabled = ($_POST['novamira_ai_abilities_enabled'] ?? null) !== null;
-        update_option('novamira_ai_abilities_enabled', $enabled);
-        if ($enabled) {
-            update_option('novamira_ai_abilities_domain', (string) wp_parse_url(home_url(), PHP_URL_HOST));
-        }
-        if (!$enabled) {
-            delete_option('novamira_ai_abilities_domain');
-        }
-        echo
-            '<div class="notice notice-success is-dismissible"><p>'
-                . esc_html__('Settings saved.', domain: 'novamira')
-                . '</p></div>'
-        ;
-    }
-
-    $enabled = novamira_is_enabled();
     $ability_groups = novamira_collect_public_abilities();
     ?>
     <?php novamira_render_admin_header(); ?>
     <div class="wrap">
-        <h1><?php esc_html_e('Novamira Settings', domain: 'novamira'); ?></h1>
-        <form method="post" action="" id="novamira-settings-form">
-            <?php wp_nonce_field('novamira_settings'); ?>
-            <table class="form-table">
-                <tr>
-                    <th scope="row"><?php esc_html_e('AI Abilities', domain: 'novamira'); ?></th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="novamira_ai_abilities_enabled" value="1" id="novamira-enable-checkbox" <?php checked(
-                                checked: $enabled,
-                                current: true,
-                            ); ?> />
-                            <?php esc_html_e('Enable AI Abilities', domain: 'novamira'); ?>
-                        </label>
-                        <p class="description"><strong style="color:#d63638;"><?php esc_html_e(
-                            'Security note:',
-                            domain: 'novamira',
-                        ); ?></strong> <?php esc_html_e(
-                            'When enabled, AI agents can execute PHP code and perform filesystem operations on this site. For development and staging environments only — always keep backups.',
-                            domain: 'novamira',
-                        ); ?></p>
-                        <p class="description"><?php esc_html_e(
-                            'For best results, use with capable, instruction-following AI models. Configure your MCP client to require approval before executing tools, and review each tool call before allowing it to run.',
-                            domain: 'novamira',
-                        ); ?></p>
-                        <p class="description"><?php esc_html_e(
-                            'You choose the AI model, you provide the API key, you review the output. We provide the plugin.',
-                            domain: 'novamira',
-                        ); ?></p>
-                    </td>
-                </tr>
-            </table>
-            <?php submit_button(
-                text: __('Save Settings', domain: 'novamira'),
-                type: 'primary',
-                name: 'novamira_submit',
-            ); ?>
-        </form>
-        <script>
-        document.getElementById('novamira-settings-form').addEventListener('submit', function (e) {
-            var cb = document.getElementById('novamira-enable-checkbox');
-            if (cb.checked && !cb.defaultChecked) {
-                if (!confirm('<?php echo
-                    esc_js(__(
-                        'AI agents will be able to execute PHP code and access the filesystem. For development and staging environments only. Continue?',
-                        domain: 'novamira',
-                    ))
-                ; ?>')) {
-                    e.preventDefault();
-                }
-            }
-        });
-        </script>
-
-        <h2><?php esc_html_e('Available Abilities', domain: 'novamira'); ?></h2>
-        <p><?php esc_html_e(
-            'These MCP tools are exposed to AI agents when AI Abilities are enabled.',
-            domain: 'novamira',
+        <h1><?php esc_html_e('AI Abilities', domain: 'novamira'); ?></h1>
+        <p><?php printf(
+            /* translators: %s: link to the Configuration page */
+            esc_html__(
+                'These MCP tools are exposed to AI agents when AI Abilities are enabled on the %s page.',
+                domain: 'novamira',
+            ),
+            '<a href="'
+            . esc_url(admin_url('admin.php?page=novamira-connect'))
+            . '">'
+            . esc_html__('Configuration', domain: 'novamira')
+            . '</a>',
         ); ?></p>
         <?php foreach ($ability_groups as $source => $abilities): ?>
             <h3 style="margin-top:1.5em;"><?php echo esc_html($source); ?></h3>

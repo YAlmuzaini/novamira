@@ -38,8 +38,9 @@ function novamira_handle_toggle_enabled(): ?bool
     return true;
 }
 
-function novamira_render_enable_toggle(bool $enabled): void
-{ ?>
+function novamira_render_enable_toggle(): void
+{
+    $enabled = novamira_is_enabled(); ?>
     <form method="post" action="" id="novamira-settings-form" style="margin-bottom: 24px;">
         <?php wp_nonce_field('novamira_settings'); ?>
         <table class="form-table">
@@ -88,7 +89,8 @@ function novamira_render_enable_toggle(bool $enabled): void
         }
     });
     </script>
-    <?php }
+    <?php
+}
 
 /**
  * Handle the create-password form submission.
@@ -417,12 +419,47 @@ function novamira_build_claude_code_cmd(
 function novamira_build_configs(string $rest_url, string $username, string $display_password, string $mcp_name): array
 {
     $opts = JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES;
-
     $npx_server = novamira_build_npx_server($rest_url, $username, $display_password);
-
     $mcp_servers_json = (string) json_encode(['mcpServers' => [$mcp_name => $npx_server]], $opts);
     $vscode_servers_json = (string) json_encode(['servers' => [$mcp_name => $npx_server]], $opts);
 
+    /* translators: %s: config file name wrapped in <code> tags */
+    $add_to = __('Add to %s.', domain: 'novamira');
+
+    $special = [
+        'claude-code' => [
+            'code' => novamira_build_claude_code_cmd($mcp_name, $rest_url, $username, $display_password),
+            'hint' => __('Run in your terminal.', domain: 'novamira'),
+            'paths' => [],
+            'isShell' => true,
+        ],
+        'zed' => [
+            'code' => novamira_build_zed_json($mcp_name, $npx_server, $opts),
+            'hint' => sprintf($add_to, '<code>settings.json</code>'),
+            'paths' => ['macOS / Linux' => '~/.config/zed/settings.json'],
+            'isShell' => false,
+        ],
+        'opencode' => [
+            'code' => novamira_build_opencode_json($mcp_name, $rest_url, $username, $display_password, $opts),
+            'hint' => sprintf($add_to, '<code>opencode.json</code>'),
+            'paths' => [
+                __('Project', domain: 'novamira') => 'opencode.json',
+                __('Global', domain: 'novamira') => '~/.config/opencode/opencode.json',
+            ],
+            'isShell' => false,
+        ],
+    ];
+
+    return array_merge(novamira_build_standard_configs($mcp_servers_json, $vscode_servers_json), $special);
+}
+
+/**
+ * Build per-client config entries that reuse the standard mcpServers/servers JSON payloads.
+ *
+ * @return array<string, array{code: string, hint: string, paths: array<string, string>, isShell: bool}>
+ */
+function novamira_build_standard_configs(string $mcp_servers_json, string $vscode_servers_json): array
+{
     /* translators: %s: config file name wrapped in <code> tags */
     $add_to = __('Add to %s.', domain: 'novamira');
 
@@ -463,29 +500,6 @@ function novamira_build_configs(string $rest_url, string $username, string $disp
             'paths' => [
                 'macOS / Linux' => '~/.codeium/windsurf/mcp_config.json',
                 'Windows' => '%USERPROFILE%\\.codeium\\windsurf\\mcp_config.json',
-            ],
-            'isShell' => false,
-        ],
-        'claude-code' => [
-            'code' => novamira_build_claude_code_cmd($mcp_name, $rest_url, $username, $display_password),
-            'hint' => __('Run in your terminal.', domain: 'novamira'),
-            'paths' => [],
-            'isShell' => true,
-        ],
-        'zed' => [
-            'code' => novamira_build_zed_json($mcp_name, $npx_server, $opts),
-            'hint' => sprintf($add_to, '<code>settings.json</code>'),
-            'paths' => [
-                'macOS / Linux' => '~/.config/zed/settings.json',
-            ],
-            'isShell' => false,
-        ],
-        'opencode' => [
-            'code' => novamira_build_opencode_json($mcp_name, $rest_url, $username, $display_password, $opts),
-            'hint' => sprintf($add_to, '<code>opencode.json</code>'),
-            'paths' => [
-                __('Project', domain: 'novamira') => 'opencode.json',
-                __('Global', domain: 'novamira') => '~/.config/opencode/opencode.json',
             ],
             'isShell' => false,
         ],
@@ -834,7 +848,7 @@ function novamira_render_connect_page(): void
             ?></p></div>
         <?php endif; ?>
 
-        <?php novamira_render_enable_toggle($enabled); ?>
+        <?php novamira_render_enable_toggle(); ?>
 
         <?php if (!$enabled): ?>
             <p style="color:#666; font-size:14px;">
@@ -843,7 +857,8 @@ function novamira_render_connect_page(): void
                     domain: 'novamira',
                 ); ?>
             </p>
-        <?php else: ?>
+        <?php endif; ?>
+        <?php if ($enabled): ?>
             <?php if ($create_error !== null): ?>
                 <div class="notice notice-error"><p><?php
 

@@ -14,7 +14,9 @@ if (!defined('ABSPATH')) {
 }
 
 const NOVAMIRA_PRO_URL = 'https://www.novamira.ai/pro/';
+
 const NOVAMIRA_PRO_DISMISS_PREFIX = 'novamira_pro_dismissed_';
+
 const NOVAMIRA_PRO_WELCOME_KEY = 'welcome';
 
 /**
@@ -30,20 +32,26 @@ function novamira_pro_is_active(): bool
  * Append a "Get Pro" submenu entry that links out to novamira.ai/pro/.
  * Uses the $submenu global because add_submenu_page() doesn't accept external URLs.
  */
-add_action('admin_menu', static function (): void {
-    if (novamira_pro_is_active()) {
-        return;
-    }
-    global $submenu;
-    if (!isset($submenu['novamira-connect'])) {
-        return;
-    }
-    $submenu['novamira-connect'][] = [
-        '<span style="color:#f8ca50;font-weight:600;">' . esc_html__('Get Pro', domain: 'novamira') . '</span>',
-        'manage_options',
-        esc_url(NOVAMIRA_PRO_URL . '?utm_source=plugin&utm_medium=submenu'),
-    ];
-}, priority: 99);
+add_action(
+    'admin_menu',
+    static function (): void {
+        if (novamira_pro_is_active()) {
+            return;
+        }
+        // @mago-expect lint:no-global
+        global $submenu;
+        if (!is_array($submenu) || !array_key_exists('novamira-connect', $submenu)) {
+            return;
+        }
+        // @mago-expect analysis:mixed-array-assignment
+        $submenu['novamira-connect'][] = [
+            '<span style="color:#f8ca50;font-weight:600;">' . esc_html__('Get Pro', domain: 'novamira') . '</span>',
+            'manage_options',
+            esc_url(NOVAMIRA_PRO_URL . '?utm_source=plugin&utm_medium=submenu'),
+        ];
+    },
+    priority: 99,
+);
 
 /**
  * Add a "Get Pro" action link on the Plugins page row for Novamira Free.
@@ -55,8 +63,12 @@ add_filter(
             return $links;
         }
         $url = esc_url(NOVAMIRA_PRO_URL . '?utm_source=plugin&utm_medium=plugins_row');
-        $links[] = '<a href="' . $url . '" target="_blank" rel="noopener">'
-            . esc_html__('Get Pro', domain: 'novamira') . '</a>';
+        $links[] =
+            '<a href="'
+            . $url
+            . '" target="_blank" rel="noopener">'
+            . esc_html__('Get Pro', domain: 'novamira')
+            . '</a>';
         return $links;
     },
 );
@@ -83,7 +95,7 @@ add_action('admin_footer', static function (): void {
 /**
  * Flag the welcome notice on first activation.
  */
-register_activation_hook(dirname(__DIR__) . '/novamira.php', 'novamira_pro_upsell_on_activate');
+register_activation_hook(dirname(__DIR__) . '/novamira.php', callback: 'novamira_pro_upsell_on_activate');
 function novamira_pro_upsell_on_activate(): void
 {
     if (get_option('novamira_pro_upsell_installed_at') === false) {
@@ -103,8 +115,8 @@ add_action('admin_init', static function (): void {
         return;
     }
     $key = sanitize_key($key);
-    update_user_meta(get_current_user_id(), NOVAMIRA_PRO_DISMISS_PREFIX . $key, 1);
-    wp_die('Dismissed', 'Dismissed', ['response' => 200]);
+    update_user_meta(get_current_user_id(), NOVAMIRA_PRO_DISMISS_PREFIX . $key, meta_value: 1);
+    wp_die('Dismissed', title: 'Dismissed', args: ['response' => 200]);
 });
 
 /**
@@ -118,28 +130,29 @@ add_action('admin_notices', static function (): void {
         return;
     }
     $user_id = get_current_user_id();
-    if (get_user_meta($user_id, NOVAMIRA_PRO_DISMISS_PREFIX . NOVAMIRA_PRO_WELCOME_KEY, true)) {
+    if (get_user_meta($user_id, NOVAMIRA_PRO_DISMISS_PREFIX . NOVAMIRA_PRO_WELCOME_KEY, single: true)) {
         return;
     }
     // Don't show on the Pro page itself or irrelevant screens outside Novamira admin.
     $screen = function_exists('get_current_screen') ? get_current_screen() : null;
-    $on_novamira = $screen && (
-        str_starts_with($screen->id, 'toplevel_page_novamira')
-        || str_starts_with($screen->id, 'novamira_page_')
-        || $screen->id === 'dashboard'
-        || $screen->id === 'plugins'
-    );
+    $on_novamira =
+        $screen
+        && (
+            str_starts_with($screen->id, 'toplevel_page_novamira')
+            || str_starts_with($screen->id, 'novamira_page_')
+            || $screen->id === 'dashboard'
+            || $screen->id === 'plugins'
+        );
     if (!$on_novamira) {
         return;
     }
 
-    $dismiss_url = add_query_arg(
-        ['novamira_pro_dismiss' => NOVAMIRA_PRO_WELCOME_KEY],
-        admin_url(),
-    );
+    $dismiss_url = add_query_arg(['novamira_pro_dismiss' => NOVAMIRA_PRO_WELCOME_KEY], admin_url());
     $pro_url = esc_url(NOVAMIRA_PRO_URL . '?utm_source=plugin&utm_medium=welcome_notice');
     ?>
-    <div class="notice notice-info is-dismissible novamira-pro-notice" data-dismiss-url="<?php echo esc_url($dismiss_url); ?>" style="border-left-color:#f8ca50;">
+    <div class="notice notice-info is-dismissible novamira-pro-notice" data-dismiss-url="<?php echo
+        esc_url($dismiss_url)
+    ; ?>" style="border-left-color:#f8ca50;">
         <p style="font-size:14px;margin:10px 0;">
             <strong><?php esc_html_e('Novamira Pro is here.', domain: 'novamira'); ?></strong>
             <?php esc_html_e(
@@ -147,7 +160,9 @@ add_action('admin_notices', static function (): void {
                 domain: 'novamira',
             ); ?>
             &nbsp;
-            <a href="<?php echo $pro_url; ?>" target="_blank" rel="noopener" class="button button-primary" style="background:#f8ca50;border-color:#f8ca50;color:#1a1a1a;">
+            <a href="<?php echo
+                $pro_url
+            ; ?>" target="_blank" rel="noopener" class="button button-primary" style="background:#f8ca50;border-color:#f8ca50;color:#1a1a1a;">
                 <?php esc_html_e('Discover more', domain: 'novamira'); ?>
             </a>
         </p>
@@ -191,7 +206,9 @@ function novamira_render_pro_upsell_card(): void
                 domain: 'novamira',
             ); ?>
         </p>
-        <a href="<?php echo $pro_url; ?>" target="_blank" rel="noopener" class="button button-primary" style="background:#f8ca50;border-color:#f8ca50;color:#1a1a1a;">
+        <a href="<?php echo
+            $pro_url
+        ; ?>" target="_blank" rel="noopener" class="button button-primary" style="background:#f8ca50;border-color:#f8ca50;color:#1a1a1a;">
             <?php esc_html_e('Get Novamira Pro', domain: 'novamira'); ?>
         </a>
     </div>

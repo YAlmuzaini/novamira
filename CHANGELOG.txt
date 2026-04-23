@@ -1,3 +1,7 @@
+v1.1.2 - 2026/04/23
+* New: Configuration instructions for the OpenAI Codex CLI MCP client.
+* Minor Fixes
+
 v1.1.1 - 2026/04/22
 * Improvement: The Configuration page now detects when Application Passwords have been disabled by a security plugin (e.g. Solid Security, Wordfence) and shows a clear explanation instead of the generic HTTPS/local-environment message.
 * Improvement: Moved the AI Abilities on/off switch to the top of the Configuration page making clear they are needed for the MCP to work.

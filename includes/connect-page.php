@@ -38,6 +38,16 @@ function novamira_handle_toggle_enabled(): ?bool
     }
 
     update_option('novamira_ai_abilities_enabled', $enabled);
+
+    $tracker_enabled = ($_POST['novamira_activity_tracker_enabled'] ?? null) !== null;
+    if ($tracker_enabled && !novamira_tracker_has_git()) {
+        $tracker_enabled = false;
+    }
+    update_option('novamira_activity_tracker_enabled', $tracker_enabled);
+    if ($tracker_enabled) {
+        novamira_tracker_init();
+    }
+
     if ($enabled) {
         update_option('novamira_ai_abilities_domain', (string) wp_parse_url(home_url(), PHP_URL_HOST));
         return true;
@@ -83,6 +93,41 @@ function novamira_render_enable_toggle(): void
                         'You choose the AI model, you provide the API key, you review the output. We provide the plugin.',
                         domain: 'novamira',
                     ); ?></p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e('Activity Tracker', domain: 'novamira'); ?></th>
+                <td>
+                    <?php $tracker_has_git = novamira_tracker_has_git(); ?>
+                    <label>
+                        <input
+                            type="checkbox"
+                            name="novamira_activity_tracker_enabled"
+                            value="1"
+                            <?php checked(checked: novamira_tracker_is_enabled(), current: true); ?>
+                            <?php disabled(disabled: !$tracker_has_git); ?>
+                        />
+                        <?php esc_html_e('Track file operations with git', domain: 'novamira'); ?>
+                    </label>
+                    <?php if (!$tracker_has_git) { ?>
+                        <p class="description" style="color:#d63638;"><?php esc_html_e(
+                            'Git is not installed on this server. Install git to enable the activity tracker.',
+                            domain: 'novamira',
+                        ); ?></p>
+                    <?php } else { ?>
+                        <p class="description"><?php printf(
+                            /* translators: %s: link to the Activity Log page */
+                            esc_html__(
+                                'Auto-commits every file operation by AI agents to a git repository at the WordPress root. View commits and revert changes from the %s page.',
+                                domain: 'novamira',
+                            ),
+                            '<a href="'
+                            . esc_url(admin_url('admin.php?page=novamira-activity'))
+                            . '">'
+                            . esc_html__('Activity Log', domain: 'novamira')
+                            . '</a>',
+                        ); ?></p>
+                    <?php } ?>
                 </td>
             </tr>
         </table>

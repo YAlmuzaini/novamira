@@ -61,22 +61,22 @@ function novamira_render_activity_page(): void
 
         <?php if (!$has_git) { ?>
             <div class="notice notice-error">
-                <p><?php esc_html_e('Git is not installed on this server. The activity tracker requires git to function.', domain: 'novamira'); ?></p>
+                <p><?php esc_html_e(
+                    'Git is not installed on this server. The activity tracker requires git to function.',
+                    domain: 'novamira',
+                ); ?></p>
             </div>
-            <?php return; ?>
-        <?php } ?>
-
-        <?php if (!$is_enabled) { ?>
+        <?php } elseif (!$is_enabled) { ?>
             <div class="notice notice-warning">
                 <p>
                     <?php esc_html_e('The activity tracker is disabled. Enable it in', domain: 'novamira'); ?>
-                    <a href="<?php echo esc_url(admin_url('admin.php?page=novamira')); ?>"><?php esc_html_e('Settings', domain: 'novamira'); ?></a>.
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=novamira-connect')); ?>"><?php esc_html_e(
+                        'Configuration',
+                        domain: 'novamira',
+                    ); ?></a>.
                 </p>
             </div>
-            <?php return; ?>
-        <?php } ?>
-
-        <?php if (is_string($viewing_diff) && preg_match('/^[0-9a-f]{7,40}$/', $viewing_diff)) { ?>
+        <?php } elseif (is_string($viewing_diff) && preg_match('/^[0-9a-f]{7,40}$/', $viewing_diff)) { ?>
             <?php novamira_render_diff_view($viewing_diff); ?>
         <?php } else { ?>
             <?php novamira_render_activity_table(); ?>
@@ -93,7 +93,7 @@ function novamira_render_activity_table(): void
     $page_num = max(1, (int) ($_GET['paged'] ?? 1));
     $per_page = 30;
     $offset = ($page_num - 1) * $per_page;
-    $entries = novamira_tracker_log($per_page, $offset);
+    $entries = novamira_tracker_log(limit: $per_page, offset: $offset);
 
     ?>
     <p><?php esc_html_e('File operations performed by AI agents through Novamira.', domain: 'novamira'); ?></p>
@@ -113,6 +113,7 @@ function novamira_render_activity_table(): void
             <?php } ?>
             <?php foreach ($entries as $entry) { ?>
                 <?php
+
                 $diff_url = admin_url('admin.php?page=novamira-activity&diff=' . urlencode($entry['hash']));
                 $revert_url = wp_nonce_url(
                     admin_url('admin.php?page=novamira-activity&action=revert&hash=' . urlencode($entry['hash'])),
@@ -124,7 +125,9 @@ function novamira_render_activity_table(): void
                     <td><?php echo esc_html($entry['date']); ?></td>
                     <td>
                         <?php if ($is_novamira) { ?>
-                            <span style="color: #d63638; font-weight: 600;"><?php echo esc_html($entry['author']); ?></span>
+                            <span style="color: #d63638; font-weight: 600;"><?php echo
+                                esc_html($entry['author'])
+                            ; ?></span>
                         <?php } else { ?>
                             <?php echo esc_html($entry['author']); ?>
                         <?php } ?>
@@ -132,10 +135,18 @@ function novamira_render_activity_table(): void
                     <td><code><?php echo esc_html($entry['message']); ?></code></td>
                     <td><small><?php echo esc_html($entry['files']); ?></small></td>
                     <td>
-                        <a href="<?php echo esc_url($diff_url); ?>" class="button button-small"><?php esc_html_e('Diff', domain: 'novamira'); ?></a>
+                        <a href="<?php echo esc_url($diff_url); ?>" class="button button-small"><?php esc_html_e(
+                            'Diff',
+                            domain: 'novamira',
+                        ); ?></a>
                         <a href="<?php echo esc_url($revert_url); ?>" class="button button-small"
-                           onclick="return confirm('<?php echo esc_js(__('Revert this commit? This will undo the changes.', domain: 'novamira')); ?>');"
-                           style="color: #d63638; border-color: #d63638;"><?php esc_html_e('Revert', domain: 'novamira'); ?></a>
+                           onclick="return confirm('<?php echo
+                               esc_js(__('Revert this commit? This will undo the changes.', domain: 'novamira'))
+                           ; ?>');"
+                           style="color: #d63638; border-color: #d63638;"><?php esc_html_e(
+                               'Revert',
+                               domain: 'novamira',
+                           ); ?></a>
                     </td>
                 </tr>
             <?php } ?>
@@ -146,9 +157,13 @@ function novamira_render_activity_table(): void
         <div class="tablenav bottom">
             <div class="tablenav-pages">
                 <?php if ($page_num > 1) { ?>
-                    <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=novamira-activity&paged=' . ($page_num - 1))); ?>">&laquo; <?php esc_html_e('Previous', domain: 'novamira'); ?></a>
+                    <a class="button" href="<?php echo
+                        esc_url(admin_url('admin.php?page=novamira-activity&paged=' . ($page_num - 1)))
+                    ; ?>">&laquo; <?php esc_html_e('Previous', domain: 'novamira'); ?></a>
                 <?php } ?>
-                <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=novamira-activity&paged=' . ($page_num + 1))); ?>"><?php esc_html_e('Next', domain: 'novamira'); ?> &raquo;</a>
+                <a class="button" href="<?php echo
+                    esc_url(admin_url('admin.php?page=novamira-activity&paged=' . ($page_num + 1)))
+                ; ?>"><?php esc_html_e('Next', domain: 'novamira'); ?> &raquo;</a>
             </div>
         </div>
     <?php } ?>
@@ -164,24 +179,28 @@ function novamira_render_diff_view(string $hash): void
     $back_url = admin_url('admin.php?page=novamira-activity');
     ?>
     <p>
-        <a href="<?php echo esc_url($back_url); ?>" class="button">&laquo; <?php esc_html_e('Back to Activity Log', domain: 'novamira'); ?></a>
-        <code><?php echo esc_html(substr($hash, 0, 12)); ?></code>
+        <a href="<?php echo esc_url($back_url); ?>" class="button">&laquo; <?php esc_html_e(
+            'Back to Activity Log',
+            domain: 'novamira',
+        ); ?></a>
+        <code><?php echo esc_html(substr($hash, offset: 0, length: 12)); ?></code>
     </p>
     <div style="background:#1e1e1e; color:#d4d4d4; padding:16px; border-radius:6px; overflow-x:auto; font-family:monospace; font-size:13px; line-height:1.5; white-space:pre-wrap; max-height:70vh; overflow-y:auto;"><?php
-        // Colorize diff output.
-        foreach (explode("\n", $diff) as $line) {
-            if (str_starts_with($line, '+') && !str_starts_with($line, '+++')) {
-                echo '<span style="color:#4ec9b0;">' . esc_html($line) . "</span>\n";
-            } elseif (str_starts_with($line, '-') && !str_starts_with($line, '---')) {
-                echo '<span style="color:#f44747;">' . esc_html($line) . "</span>\n";
-            } elseif (str_starts_with($line, '@@')) {
-                echo '<span style="color:#569cd6;">' . esc_html($line) . "</span>\n";
-            } elseif (str_starts_with($line, 'diff') || str_starts_with($line, 'index')) {
-                echo '<span style="color:#808080;">' . esc_html($line) . "</span>\n";
-            } else {
-                echo esc_html($line) . "\n";
-            }
+
+    // Colorize diff output.
+    foreach (explode("\n", $diff) as $line) {
+        if (str_starts_with($line, '+') && !str_starts_with($line, '+++')) {
+            echo '<span style="color:#4ec9b0;">' . esc_html($line) . "</span>\n";
+        } elseif (str_starts_with($line, '-') && !str_starts_with($line, '---')) {
+            echo '<span style="color:#f44747;">' . esc_html($line) . "</span>\n";
+        } elseif (str_starts_with($line, '@@')) {
+            echo '<span style="color:#569cd6;">' . esc_html($line) . "</span>\n";
+        } elseif (str_starts_with($line, 'diff') || str_starts_with($line, 'index')) {
+            echo '<span style="color:#808080;">' . esc_html($line) . "</span>\n";
+        } else {
+            echo esc_html($line) . "\n";
         }
+    }
     ?></div>
     <?php
 }

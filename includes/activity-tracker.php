@@ -17,16 +17,17 @@ declare(strict_types=1);
  */
 function novamira_tracker_git_path(): ?string
 {
-    static $git_path = false;
-    if ($git_path !== false) {
-        return $git_path;
+    /** @var string|null $cached */
+    static $cached = '';
+    if ($cached !== '') {
+        return $cached;
     }
 
-    // Try git in PATH first.
+    $output = [];
+    $code = 0;
     exec('git --version 2>/dev/null', $output, $code);
     if ($code === 0) {
-        $git_path = 'git';
-        return $git_path;
+        return $cached = 'git';
     }
 
     // Check common locations (macOS Homebrew, Xcode, Linux).
@@ -37,13 +38,11 @@ function novamira_tracker_git_path(): ?string
     ];
     foreach ($candidates as $candidate) {
         if (is_executable($candidate)) {
-            $git_path = $candidate;
-            return $git_path;
+            return $cached = $candidate;
         }
     }
 
-    $git_path = null;
-    return $git_path;
+    return $cached = null;
 }
 
 /**
@@ -59,7 +58,9 @@ function novamira_tracker_has_git(): bool
  */
 function novamira_tracker_is_enabled(): bool
 {
-    return (bool) get_option('novamira_activity_tracker_enabled', false);
+    /** @var mixed $value */
+    $value = get_option('novamira_activity_tracker_enabled', default_value: false);
+    return $value === '1' || $value === true;
 }
 
 /**
@@ -73,7 +74,7 @@ function novamira_tracker_init(): bool
         return false;
     }
 
-    $abspath = rtrim(ABSPATH, '/');
+    $abspath = rtrim(ABSPATH, characters: '/');
 
     // Already a git repo.
     if (is_dir($abspath . '/.git')) {
@@ -82,6 +83,8 @@ function novamira_tracker_init(): bool
 
     // Initialize a new repo.
     $git = novamira_tracker_git_path() ?? 'git';
+    $output = [];
+    $code = 0;
     exec(sprintf('cd %s && %s init 2>&1', escapeshellarg($abspath), escapeshellarg($git)), $output, $code);
     if ($code !== 0) {
         return false;
@@ -91,11 +94,12 @@ function novamira_tracker_init(): bool
     // Only files explicitly staged by the tracker will be committed.
     $gitignore_path = $abspath . '/.gitignore';
     if (!file_exists($gitignore_path)) {
-        $gitignore = implode("\n", [
-            '# Novamira Activity Tracker — ignore everything by default.',
-            '# Only files touched by AI agents are tracked via explicit git add.',
-            '*',
-        ]) . "\n";
+        $gitignore =
+            implode("\n", [
+                '# Novamira Activity Tracker — ignore everything by default.',
+                '# Only files touched by AI agents are tracked via explicit git add.',
+                '*',
+            ]) . "\n";
         file_put_contents($gitignore_path, $gitignore);
     }
 
@@ -115,7 +119,7 @@ function novamira_tracker_init(): bool
  */
 function novamira_tracker_exec(string $command, bool $capture_output = false): array
 {
-    $abspath = rtrim(ABSPATH, '/');
+    $abspath = rtrim(ABSPATH, characters: '/');
     $git = novamira_tracker_git_path() ?? 'git';
     $redirect = $capture_output ? '2>&1' : '>/dev/null 2>&1';
     $full = sprintf(
@@ -129,6 +133,8 @@ function novamira_tracker_exec(string $command, bool $capture_output = false): a
         $command,
         $redirect,
     );
+    $output = [];
+    $code = 0;
     exec($full, $output, $code);
     return ['output' => $capture_output ? implode("\n", $output) : '', 'code' => $code];
 }
@@ -151,9 +157,9 @@ function novamira_tracker_commit(string $action, string $path, string $detail = 
         return;
     }
 
-    $abspath = rtrim(ABSPATH, '/');
+    $abspath = rtrim(ABSPATH, characters: '/');
     $relative = str_starts_with($path, $abspath)
-        ? ltrim(substr($path, strlen($abspath)), '/')
+        ? ltrim(substr($path, strlen($abspath)), characters: '/')
         : basename($path);
 
     $message = sprintf('[novamira] %s: %s', $action, $relative);
@@ -181,7 +187,7 @@ function novamira_tracker_commit(string $action, string $path, string $detail = 
  *
  * @param int $limit  Max entries to return.
  * @param int $offset Entries to skip.
- * @return list<array{hash: string, date: string, message: string, files: string}>
+ * @return list<array{hash: string, date: string, author: string, message: string, files: string}>
  */
 function novamira_tracker_log(int $limit = 50, int $offset = 0): array
 {
@@ -189,16 +195,15 @@ function novamira_tracker_log(int $limit = 50, int $offset = 0): array
         return [];
     }
 
-    $abspath = rtrim(ABSPATH, '/');
+    $abspath = rtrim(ABSPATH, characters: '/');
     if (!is_dir($abspath . '/.git')) {
         return [];
     }
 
-    $result = novamira_tracker_exec(sprintf(
-        'log --skip=%d -n %d --pretty=format:"%%H|%%ai|%%an|%%s" --name-only',
-        $offset,
-        $limit,
-    ), capture_output: true);
+    $result = novamira_tracker_exec(
+        sprintf('log --skip=%d -n %d --pretty=format:"%%H|%%ai|%%an|%%s" --name-only', $offset, $limit),
+        capture_output: true,
+    );
 
     if ($result['code'] !== 0 || $result['output'] === '') {
         return [];
@@ -212,12 +217,14 @@ function novamira_tracker_log(int $limit = 50, int $offset = 0): array
 
     foreach ($blocks as $block) {
         $lines = explode("\n", trim($block));
-        $header = $lines[0] ?? '';
-        $parts = explode('|', $header, 4);
+        if ($lines === []) {
+            continue;
+        }
+        $parts = explode(separator: '|', string: $lines[0], limit: 4);
         if (count($parts) < 4) {
             continue;
         }
-        $files = array_slice($lines, 1);
+        $files = array_slice($lines, offset: 1);
         $entries[] = [
             'hash' => $parts[0],
             'date' => $parts[1],

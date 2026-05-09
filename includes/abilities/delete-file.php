@@ -110,6 +110,9 @@ function novamira_delete_file($input)
         if (!unlink($resolved)) {
             return new WP_Error('delete_failed', sprintf('Failed to delete file: %s', $resolved));
         }
+
+        novamira_tracker_commit('delete-file', $resolved);
+
         return [
             'path' => $resolved,
             'type' => 'file',

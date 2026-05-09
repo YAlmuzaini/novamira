@@ -1,0 +1,38 @@
+#!/bin/bash -e
+
+SLUG="novamira"
+BASEDIR=$(dirname $(dirname $(realpath "$0")))
+DIST_DIR="$BASEDIR/dist"
+BUILD_BASE=$(mktemp -d /tmp/ooo-build-XXXXXX)
+BUILD_DIR="$BUILD_BASE/$SLUG"
+
+if [ $# -ne 1 ]; then
+	echo "usage: $0 version"
+	exit 1
+fi
+
+VERSION="$1"
+
+mkdir -p "$BUILD_DIR"
+cd "$BASEDIR"
+
+GIT_LS_FILES=$(mktemp)
+git ls-files >"$GIT_LS_FILES"
+rsync -rl --files-from="$GIT_LS_FILES" --exclude-from=build/build-ignore ./ "$BUILD_DIR/"
+rm "$GIT_LS_FILES"
+
+# Install production deps and copy vendor into build
+composer install --no-dev --optimize-autoloader --no-interaction
+rsync -rl --exclude='php-stubs' --exclude='bin' vendor/ "$BUILD_DIR/vendor/"
+composer install --no-interaction  # restore dev deps
+
+# Remove empty directories
+find "$BUILD_DIR" -type d -empty -delete
+
+cd "$BUILD_BASE"
+ZIPF="$SLUG-$VERSION.zip"
+zip -r "$ZIPF" "$SLUG" -x '*.DS_Store'
+mkdir -p "$DIST_DIR"
+mv "$ZIPF" "$DIST_DIR/"
+rm -rf "$BUILD_BASE"
+echo "$ZIPF created in dist/"

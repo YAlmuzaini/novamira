@@ -101,6 +101,8 @@ function novamira_disable_file($input)
         return new WP_Error('rename_failed', sprintf('Failed to rename file: %s', $resolved));
     }
 
+    novamira_tracker_commit('disable-file', $disabled_path);
+
     return [
         'original_path' => $resolved,
         'disabled_path' => $disabled_path,

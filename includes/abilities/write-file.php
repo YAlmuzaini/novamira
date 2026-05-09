@@ -176,11 +176,15 @@ function novamira_write_file($input)
         chmod(filename: $resolved, permissions: 0644);
     }
 
-    return [
+    $result = [
         'path' => $resolved,
         'bytes_written' => $bytes_written,
         'created' => $created,
         'directories_created' => $directories_created,
         'size' => filesize($resolved),
     ];
+
+    novamira_tracker_commit($created ? 'create-file' : 'write-file', $resolved);
+
+    return $result;
 }

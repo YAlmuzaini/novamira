@@ -118,6 +118,8 @@ function novamira_enable_file($input)
         return new WP_Error('rename_failed', sprintf('Failed to rename file: %s', $resolved));
     }
 
+    novamira_tracker_commit('enable-file', $enabled_path);
+
     return [
         'disabled_path' => $resolved,
         'enabled_path' => $enabled_path,

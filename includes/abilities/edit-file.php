@@ -159,9 +159,13 @@ function novamira_edit_file($input)
         return new WP_Error('write_failed', sprintf('Failed to write file: %s', $resolved));
     }
 
-    return [
+    $result = [
         'path' => $resolved,
         'replacements' => $count,
         'size' => $bytes_written,
     ];
+
+    novamira_tracker_commit('edit-file', $resolved);
+
+    return $result;
 }

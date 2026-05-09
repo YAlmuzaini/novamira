@@ -240,6 +240,8 @@ require_once __DIR__ . '/includes/admin-page.php';
 require_once __DIR__ . '/includes/connect-page.php';
 require_once __DIR__ . '/includes/pro-upsell.php';
 require_once __DIR__ . '/includes/upload-link.php';
+require_once __DIR__ . '/includes/activity-tracker.php';
+require_once __DIR__ . '/includes/activity-page.php';
 
 // Dependency check: Abilities API must be active.
 if (!class_exists('WP_Ability')) {
@@ -280,6 +282,9 @@ add_action('admin_init', static function () {
     }
     if ($page === 'novamira-connect') {
         novamira_handle_revoke_password();
+    }
+    if ($page === 'novamira-activity') {
+        novamira_handle_activity_actions();
     }
 });
 
@@ -324,6 +329,16 @@ add_action('admin_menu', static function () {
         capability: 'manage_options',
         menu_slug: 'novamira-sandbox',
         callback: 'novamira_render_sandbox_page',
+    );
+
+    // Activity Log sub-page.
+    add_submenu_page(
+        parent_slug: 'novamira-connect',
+        page_title: __('Activity Log', domain: 'novamira'),
+        menu_title: __('Activity Log', domain: 'novamira'),
+        capability: 'manage_options',
+        menu_slug: 'novamira-activity',
+        callback: 'novamira_render_activity_page',
     );
 });
 
